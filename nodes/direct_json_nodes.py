@@ -204,15 +204,69 @@ def _parse_editor_payload(s):
     return [], "", False
 
 
-def _parse_caption_json(s):
-    if s and s.strip():
+def _complete_json_candidate(text):
+    if not text:
+        return ""
+    start = text.find("{")
+    if start >= 0:
+        text = text[start:]
+    text = text.strip()
+
+    stack = []
+    in_string = False
+    escaped = False
+    pairs = {"{": "}", "[": "]"}
+    closes = {"}": "{", "]": "["}
+
+    for ch in text:
+        if in_string:
+            if escaped:
+                escaped = False
+            elif ch == "\\":
+                escaped = True
+            elif ch == '"':
+                in_string = False
+            continue
+        if ch == '"':
+            in_string = True
+        elif ch in pairs:
+            stack.append(ch)
+        elif ch in closes:
+            if stack and stack[-1] == closes[ch]:
+                stack.pop()
+
+    if in_string:
+        return text
+    if stack:
+        text += "".join(pairs[ch] for ch in reversed(stack))
+    return text
+
+
+def _parse_caption_json_with_error(s):
+    if not s or not s.strip():
+        return None, ""
+    raw = s.strip()
+    candidates = [raw]
+    completed = _complete_json_candidate(raw)
+    if completed and completed not in candidates:
+        candidates.append(completed)
+
+    decoder = json.JSONDecoder()
+    last_error = ""
+    for candidate in candidates:
         try:
-            cap = json.loads(s)
+            cap, _ = decoder.raw_decode(candidate)
             if isinstance(cap, dict) and isinstance(cap.get("compositional_deconstruction"), dict):
-                return cap
-        except json.JSONDecodeError:
-            pass
-    return None
+                return cap, ""
+            last_error = "JSON parsed, but it does not contain compositional_deconstruction."
+        except json.JSONDecodeError as e:
+            last_error = f"Invalid JSON near line {e.lineno}, column {e.colno}: {e.msg}"
+    return None, last_error
+
+
+def _parse_caption_json(s):
+    cap, _ = _parse_caption_json_with_error(s)
+    return cap
 
 
 def _caption_changed(import_cap, import_json_cache):
@@ -352,7 +406,8 @@ bbox 使用 0-1000 归一化坐标：[ymin, xmin, ymax, xmax]；width/height 用
         boxes, embedded_import_cache, explicit_editor_state = _parse_editor_payload(elements_data)
         if not import_json_cache and embedded_import_cache:
             import_json_cache = embedded_import_cache
-        import_cap = _parse_caption_json(import_json)
+        import_error = ""
+        import_cap, import_error = _parse_caption_json_with_error(import_json)
 
         has_import_cache = bool(import_json_cache and import_json_cache.strip())
         import_changed = _caption_changed(import_cap, import_json_cache)
@@ -433,4 +488,6 @@ bbox 使用 0-1000 归一化坐标：[ymin, xmin, ymax, xmax]；width/height 用
         ui = {"dims": [width, height]}
         if import_cap is not None:
             ui["caption"] = [_dumps(import_cap)]
+        elif import_error:
+            ui["import_error"] = [import_error]
         return io.NodeOutput(_dumps(caption), preview, bboxes_out, width, height, ui=ui)

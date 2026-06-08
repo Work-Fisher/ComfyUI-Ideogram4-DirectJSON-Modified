@@ -1020,10 +1020,43 @@ app.registerExtension({
         setWidgetVal("medium", sd.medium || "");
         node._stylePalette = Array.isArray(sd.color_palette) ? sd.color_palette.slice() : [];
       }
+      function completeJsonCandidate(t) {
+        if (!t) return "";
+        let raw = String(t).trim();
+        const start = raw.indexOf("{");
+        if (start >= 0) raw = raw.slice(start).trim();
+        const stack = [];
+        const pairs = { "{": "}", "[": "]" };
+        const closes = { "}": "{", "]": "[" };
+        let inString = false, escaped = false;
+        for (const ch of raw) {
+          if (inString) {
+            if (escaped) escaped = false;
+            else if (ch === "\\") escaped = true;
+            else if (ch === '"') inString = false;
+            continue;
+          }
+          if (ch === '"') inString = true;
+          else if (pairs[ch]) stack.push(ch);
+          else if (closes[ch] && stack[stack.length - 1] === closes[ch]) stack.pop();
+        }
+        if (!inString && stack.length) raw += stack.reverse().map((ch) => pairs[ch]).join("");
+        return raw;
+      }
+      function parseFirstJsonObject(t) {
+        const raw = completeJsonCandidate(t);
+        if (!raw) return null;
+        const candidates = [String(t).trim(), raw].filter((v, i, a) => v && a.indexOf(v) === i);
+        for (const candidate of candidates) {
+          try {
+            const o = JSON.parse(candidate);
+            if (o && typeof o === "object" && o.compositional_deconstruction) return o;
+          } catch (e) {}
+        }
+        return null;
+      }
       function tryParseCaption(t) {
-        if (!t) return null;
-        try { const o = JSON.parse(t); return (o && typeof o === "object" && o.compositional_deconstruction) ? o : null; }
-        catch (e) { return null; }
+        return parseFirstJsonObject(t);
       }
       // Apply a parsed caption to the editor and refresh everything.
       function loadCaption(cap, capStr = "") {
@@ -1053,6 +1086,10 @@ app.registerExtension({
       }
       chainCallback(node, "onExecuted", function (message) {
         if (message?.caption) applyImported(message.caption[0]);
+        if (message?.import_error?.[0] && message.import_error[0] !== node._lastImportError) {
+          node._lastImportError = message.import_error[0];
+          alert("导入 JSON 失败：" + message.import_error[0]);
+        }
         // Reflect resolved width/height (e.g. from connected inputs) in the canvas aspect.
         // A connected background image governs the aspect itself, so skip then.
         if (message?.dims && !node._bgImg) {
