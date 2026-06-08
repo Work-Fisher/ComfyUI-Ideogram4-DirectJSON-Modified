@@ -285,32 +285,29 @@ class Ideogram4DirectJSONBuilderModified(io.ComfyNode):
     def define_schema(cls):
         return io.Schema(
             node_id="Ideogram4DirectJSONBuilderModified",
-            display_name="Ideogram 4 Direct JSON Builder Modified",
-            category="Ideogram4/modified",
+            display_name="Ideogram 4 直接 JSON 构建器（修改版）",
+            category="Ideogram4/修改版",
             search_aliases=["ideogram", "caption", "bbox", "direct json", "prompt builder", "json prompt"],
             is_experimental=True,
             description="""
-Modified visual prompt builder for Ideogram 4's structured JSON caption format.
+Ideogram 4 结构化 JSON 提示词可视化构建器（修改版）。
 
-Drag on the canvas to draw regions; select a region to set its type (obj/text),
-description, text, and color palette. Set the background and optional style fields
-as widgets. Outputs the assembled caption JSON string.
+在画布上拖拽绘制区域；选择区域后可以设置类型（obj/text）、描述、文本和颜色。
+背景、风格等字段仍通过节点输入填写。节点会输出完整 caption JSON 字符串。
 
-Unlike the original KJNodes node, import_json can be used as a one-run backend
-source when the editor is empty. Once regions have been edited, the editor state
-takes priority so manual bbox edits change the output JSON.
+与原 KJNodes 节点不同，本节点的 import_json 可以在第一次运行时直接作为后端输入输出。
+手动移动、缩放、添加或删除区域后，编辑器状态优先，输出 JSON 会跟随 bbox 修改。
 
-bbox is normalized to a 0-1000 grid as [ymin, xmin, ymax, xmax]; width/height set
-the canvas aspect ratio.""",
+bbox 使用 0-1000 归一化坐标：[ymin, xmin, ymax, xmax]；width/height 用于设置画布比例。""",
             inputs=[
                 io.Int.Input("width", default=1024, min=64, max=16384, step=16,
-                             tooltip="Canvas aspect width (also the pixel grid the bbox is measured in). Ideogram 4 needs multiples of 16."),
+                             tooltip="画布比例宽度，也是 bbox 换算参考宽度。Ideogram 4 通常需要 16 的倍数。"),
                 io.Int.Input("height", default=1024, min=64, max=16384, step=16,
-                             tooltip="Canvas aspect height (also the pixel grid the bbox is measured in). Ideogram 4 needs multiples of 16."),
+                             tooltip="画布比例高度，也是 bbox 换算参考高度。Ideogram 4 通常需要 16 的倍数。"),
                 io.String.Input("high_level_description", multiline=True, default="",
-                                tooltip="Optional one-line overview of the whole image (blank = omitted)."),
+                                tooltip="整张图的高层描述；留空则不输出此字段。"),
                 io.String.Input("background", multiline=True, default="",
-                                tooltip="Required scene background description."),
+                                tooltip="场景背景描述，必填。"),
                 io.DynamicCombo.Input("style", options=[
                     io.DynamicCombo.Option("none", []),
                     io.DynamicCombo.Option("photo", [
@@ -320,30 +317,30 @@ the canvas aspect ratio.""",
                         io.String.Input("art_style", default=""),
                     ]),
                 ]),
-                io.String.Input("aesthetics", default="", tooltip="Style descriptor (blank = omitted)."),
-                io.String.Input("lighting", default="", tooltip="Style descriptor (blank = omitted)."),
-                io.String.Input("medium", default="", tooltip="Style descriptor (blank = omitted)."),
+                io.String.Input("aesthetics", default="", tooltip="风格审美描述；留空则省略。"),
+                io.String.Input("lighting", default="", tooltip="光线描述；留空则省略。"),
+                io.String.Input("medium", default="", tooltip="媒介描述；留空则省略。"),
                 io.Image.Input("image", optional=True,
-                               tooltip="Optional reference image shown as the editor background (and behind the preview)."),
+                               tooltip="可选参考图，会显示为编辑器背景和预览图底图。"),
                 io.String.Input("import_json", default="", optional=True, force_input=True,
-                                tooltip="Optional: a full caption JSON. When connected, it loads into the "
-                                        "editor on run. If the editor is empty, this same run outputs the input JSON; "
-                                        "after manual edits, output reflects the editor state."),
+                                tooltip="可选：完整 caption JSON。连接后运行时会导入编辑器；"
+                                        "如果编辑器为空，本次运行会直接输出输入 JSON；"
+                                        "手动编辑后，输出以编辑器状态为准。"),
                 io.String.Input("import_json_cache", default="", socketless=True, advanced=True,
-                                tooltip="Last imported caption JSON from the editor UI (managed by the node UI)."),
+                                tooltip="编辑器 UI 管理的上次导入 JSON 缓存。"),
                 io.String.Input("style_palette_data", default="", socketless=True, advanced=True,
-                                tooltip="Serialized style color palette from the editor (managed by the node UI)."),
+                                tooltip="编辑器 UI 管理的风格颜色序列化数据。"),
                 io.String.Input("elements_data", default="", socketless=True, advanced=True,
-                                tooltip="Serialized regions from the editor (managed by the node UI)."),
+                                tooltip="编辑器 UI 管理的区域序列化数据。"),
                 io.Int.Input("bg_brightness", default=25, min=0, max=100, socketless=True, advanced=True,
-                             tooltip="Background image brightness % (managed by the node UI slider)."),
+                             tooltip="背景图亮度百分比，由节点 UI 滑块管理。"),
             ],
             outputs=[
-                io.String.Output(display_name="prompt"),
-                io.Image.Output(display_name="preview"),
-                io.BoundingBox.Output(display_name="bboxes"),
-                io.Int.Output(display_name="width"),
-                io.Int.Output(display_name="height"),
+                io.String.Output(display_name="提示词"),
+                io.Image.Output(display_name="预览"),
+                io.BoundingBox.Output(display_name="BBOX"),
+                io.Int.Output(display_name="宽度"),
+                io.Int.Output(display_name="高度"),
             ],
         )
 

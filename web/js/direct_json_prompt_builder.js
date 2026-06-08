@@ -117,6 +117,12 @@ app.registerExtension({
 
     chainCallback(nodeType.prototype, "onNodeCreated", function () {
       const node = this;
+      function localizeNodeTitle() {
+        if (!node.title || node.title === node.type || node.title === "Ideogram 4 Direct JSON Builder Modified") {
+          node.title = "Ideogram 4 直接 JSON 构建器（修改版）";
+        }
+      }
+      localizeNodeTitle();
       const findW = (n) => node.widgets?.find((w) => w.name === n);
       const elementsWidget = findW("elements_data");
       const stylePaletteWidget = findW("style_palette_data");
@@ -166,31 +172,31 @@ app.registerExtension({
       hint.className = "kjideo-hint";
       const copyBtn = document.createElement("button");
       copyBtn.className = "kjideo-btn";
-      copyBtn.textContent = "Copy";
-      copyBtn.title = "Copy the current caption JSON to the clipboard";
+      copyBtn.textContent = "复制";
+      copyBtn.title = "复制当前 caption JSON 到剪贴板";
       const importBtn = document.createElement("button");
       importBtn.className = "kjideo-btn";
-      importBtn.textContent = "Paste";
-      importBtn.title = "Parse a caption JSON (clipboard, else paste prompt) and populate the node";
+      importBtn.textContent = "粘贴";
+      importBtn.title = "从剪贴板或弹窗粘贴 caption JSON，并填充到节点编辑器";
       const clearBtn = document.createElement("button");
       clearBtn.className = "kjideo-btn";
-      clearBtn.textContent = "Clear all";
+      clearBtn.textContent = "全部清除";
       const tokenSpan = document.createElement("span");
       tokenSpan.style.cssText = "color:#888; white-space:nowrap;";
-      tokenSpan.title = "Rough token estimate (~chars/4). Grey <256, green healthy, orange nearing, red ≥2048 (model cap — will error)";
+      tokenSpan.title = "粗略 token 估算（约字符数/4）。灰色 <256，绿色正常，橙色接近上限，红色 ≥2048 会超出模型限制";
       const grabBtn = document.createElement("button");
       grabBtn.className = "kjideo-btn";
       grabBtn.addEventListener("mousedown", (e) => e.stopPropagation());
       grabBtn.addEventListener("click", () => { (node._bgManual && node._bgImg) ? node._clearBg() : node._grabResultBg(); });
       function updateGrabBtn() {
         const clear = node._bgManual && node._bgImg;
-        grabBtn.textContent = clear ? "Clear BG" : "Grab BG";
-        grabBtn.title = clear ? "Remove the grabbed background"
-          : "Use the last generated image as the background";
+        grabBtn.textContent = clear ? "清除背景" : "抓取背景";
+        grabBtn.title = clear ? "移除已抓取的背景图"
+          : "使用最近一次生成结果作为画布背景";
       }
       const liveLabel = document.createElement("label");
       liveLabel.style.cssText = "display:flex;align-items:center;gap:3px;flex:0 0 auto;cursor:pointer;";
-      liveLabel.title = "Use the live sampling preview as the background while generating";
+      liveLabel.title = "生成时使用实时采样预览作为背景";
       const liveChk = document.createElement("input");
       liveChk.type = "checkbox";
       liveChk.checked = !!node.properties.liveBg;
@@ -199,12 +205,12 @@ app.registerExtension({
         node.properties.liveBg = liveChk.checked;
         if (liveChk.checked) livePreviewNodes.add(node); else livePreviewNodes.delete(node);
       });
-      liveLabel.appendChild(liveChk); liveLabel.appendChild(document.createTextNode("Live"));
+      liveLabel.appendChild(liveChk); liveLabel.appendChild(document.createTextNode("实时"));
       if (liveChk.checked) livePreviewNodes.add(node);
       const bgSlider = document.createElement("input");
       bgSlider.type = "range"; bgSlider.min = "0"; bgSlider.max = "100"; bgSlider.step = "1";
       bgSlider.value = bgBrightnessWidget ? bgBrightnessWidget.value : 25;
-      bgSlider.title = "Background brightness (image or blank canvas)";
+      bgSlider.title = "背景亮度（图片或空画布）";
       bgSlider.style.cssText = "width:64px;flex:0 0 auto;";
       stopProp(bgSlider);
       bgSlider.addEventListener("input", () => { if (bgBrightnessWidget) bgBrightnessWidget.value = parseInt(bgSlider.value, 10); drawCanvas(); });
@@ -215,14 +221,14 @@ app.registerExtension({
       const styleBar = document.createElement("div");
       styleBar.className = "kjideo-bar";
       const styleLbl = document.createElement("span");
-      styleLbl.textContent = "Style colors:";
+      styleLbl.textContent = "风格颜色：";
       styleBar.appendChild(styleLbl);
 
       const canvasEl = document.createElement("canvas");
       canvasEl.className = "kjideo-canvas";
       canvasEl.tabIndex = 0;                                  // focusable, so it can receive key events
-      canvasEl.title = "Drag to draw · click to select · alt-click overlap · dbl-click edit · " +
-        "right-click region list · Del remove · Ctrl/Cmd+C/V/D copy/paste/duplicate";
+      canvasEl.title = "拖拽绘制 · 单击选择 · Alt 单击切换重叠区域 · 双击编辑 · " +
+        "右键区域列表 · Del 删除 · Ctrl/Cmd+C/V/D 复制/粘贴/复制并放置";
       const ctx = canvasEl.getContext("2d");
       addWheelPassthrough(wrap);
       addMiddleClickPan(canvasEl);
@@ -760,7 +766,7 @@ app.registerExtension({
         menu.className = "kjideo-menu";
         const hdr = document.createElement("div");
         hdr.className = "kjideo-mhdr";
-        hdr.textContent = "Regions — top = front · click select · drag reorder";
+        hdr.textContent = "区域列表 - 越上越靠前 · 单击选择 · 拖拽排序";
         // 01 at the top of the list = front-most (drawn on top); see _draw / boxesAt.
         menu.appendChild(hdr);
         const list = document.createElement("div");
@@ -774,7 +780,7 @@ app.registerExtension({
           list.innerHTML = "";
           if (!node._boxes.length) {
             const empty = document.createElement("div");
-            empty.className = "kjideo-mhdr"; empty.textContent = "No regions yet.";
+            empty.className = "kjideo-mhdr"; empty.textContent = "还没有区域。";
             list.appendChild(empty);
             return;
           }
@@ -790,14 +796,14 @@ app.registerExtension({
             const txt = document.createElement("span");
             const label = rowLabel(b);
             txt.className = "kjideo-ltext" + (label ? "" : " empty");
-            txt.textContent = label || (b.type === "text" ? "(text)" : "(empty)");
+            txt.textContent = label || (b.type === "text" ? "（文本）" : "（空）");
             txt.title = label;
             const dup = document.createElement("button");
             dup.className = "kjideo-lbtn"; dup.textContent = "⧉";
-            dup.title = "Duplicate, then click on the canvas to place";
+            dup.title = "复制此区域，然后在画布上单击放置";
             const del = document.createElement("button");
             del.className = "kjideo-lbtn del"; del.textContent = "✕";
-            del.title = "Delete region";
+            del.title = "删除区域";
             row.append(sw, num, txt, dup, del);
             list.appendChild(row);
 
@@ -960,14 +966,14 @@ app.registerExtension({
       // Rough token estimate (~chars/4); exact count needs the Qwen tokenizer.
       function updateTokens() {
         const n = Math.ceil(buildCaption().length / 4);
-        tokenSpan.textContent = "~" + n + " tok";
+        tokenSpan.textContent = "~" + n + " 词元";
         // grey <256 (sparse) · green healthy · orange nearing · red ≥2048 (model hard cap)
         tokenSpan.style.color = n >= 2048 ? "#e05555" : n >= 1792 ? "#e6a23c" : n >= 256 ? "#6cc06c" : "#888";
       }
       async function doCopy() {
         const txt = buildCaption();
-        try { await navigator.clipboard.writeText(txt); copyBtn.textContent = "Copied"; setTimeout(() => (copyBtn.textContent = "Copy"), 900); }
-        catch (e) { window.prompt("Copy the caption JSON:", txt); }
+        try { await navigator.clipboard.writeText(txt); copyBtn.textContent = "已复制"; setTimeout(() => (copyBtn.textContent = "复制"), 900); }
+        catch (e) { window.prompt("复制 caption JSON：", txt); }
       }
       stopProp(copyBtn);
       copyBtn.addEventListener("click", doCopy);
@@ -1030,8 +1036,8 @@ app.registerExtension({
       async function doImport() {
         let cap = null, txt = "";
         try { txt = (await navigator.clipboard.readText() || "").trim(); cap = tryParseCaption(txt); } catch (e) {}
-        if (!cap) { txt = (window.prompt("Paste Ideogram 4 caption JSON:", "") || "").trim(); cap = tryParseCaption(txt); }
-        if (!cap) { if (txt) alert("Not a valid Ideogram 4 caption JSON (needs 'compositional_deconstruction')."); return; }
+        if (!cap) { txt = (window.prompt("粘贴 Ideogram 4 caption JSON：", "") || "").trim(); cap = tryParseCaption(txt); }
+        if (!cap) { if (txt) alert("不是有效的 Ideogram 4 caption JSON（需要包含 compositional_deconstruction）。"); return; }
         loadCaption(cap, txt);
       }
       stopProp(importBtn);
@@ -1069,7 +1075,7 @@ app.registerExtension({
           sw.className = "kjideo-sw";
           sw.style.background = hex;
           sw.dataset.hex = hex;
-          sw.title = "Click edit · drag reorder · right-click remove";
+          sw.title = "单击编辑 · 拖拽排序 · 右键移除";
           const inp = document.createElement("input");
           inp.type = "color"; inp.value = hex;
           sw.appendChild(inp);
@@ -1167,25 +1173,25 @@ app.registerExtension({
         panel.innerHTML = "";
         const b = node._boxes[node._activeIdx];
         if (!b) {
-          hint.textContent = "Drag on the canvas to add a region";
+          hint.textContent = "在画布上拖拽以添加区域";
           const p = document.createElement("div");
           p.style.color = "#888";
-          p.textContent = node._boxes.length ? "Click a region to edit it." : "No regions yet.";
+          p.textContent = node._boxes.length ? "单击一个区域开始编辑。" : "还没有区域。";
           panel.appendChild(p);
           requestAnimationFrame(fitNode);
           return;
         }
         const col = (b.palette || []).find(Boolean) || "#bbb";
-        hint.innerHTML = `<b style="color:${col}">region ${node._activeIdx + 1}</b> · dbl-click edit · alt-click overlap · del remove`;
+        hint.innerHTML = `<b style="color:${col}">区域 ${node._activeIdx + 1}</b> · 双击编辑 · Alt 单击切换重叠 · Del 删除`;
 
         // type toggle
         const typeRow = document.createElement("div");
         typeRow.className = "kjideo-row";
-        const lbl = document.createElement("span"); lbl.textContent = "type:"; typeRow.appendChild(lbl);
+        const lbl = document.createElement("span"); lbl.textContent = "类型："; typeRow.appendChild(lbl);
         for (const t of ["obj", "text"]) {
           const btn = document.createElement("button");
           btn.className = "kjideo-btn" + (b.type === t ? " active" : "");
-          btn.textContent = t;
+          btn.textContent = t === "obj" ? "对象" : "文本";
           stopProp(btn);
           btn.addEventListener("click", () => { markEdited(); b.type = t; commit(); });
           typeRow.appendChild(btn);
@@ -1194,18 +1200,18 @@ app.registerExtension({
 
         // text (only for text type)
         if (b.type === "text") {
-          panel.appendChild(makeArea("text", b.text, "text to render (verbatim)",
+          panel.appendChild(makeArea("text", b.text, "需要渲染的文字（逐字保留）",
             function () { b.text = this.value; touch(); }));
         }
 
         // desc — default ~3x the single-line min height
-        panel.appendChild(makeArea("desc", b.desc, "description of this region",
+        panel.appendChild(makeArea("desc", b.desc, "这个区域的英文描述",
           function () { b.desc = this.value; touch(); }, 110));
 
         // palette
         const palRow = document.createElement("div");
         palRow.className = "kjideo-row";
-        const pl = document.createElement("span"); pl.textContent = "colors:"; palRow.appendChild(pl);
+        const pl = document.createElement("span"); pl.textContent = "颜色："; palRow.appendChild(pl);
         b.palette = b.palette || [];
         buildSwatchRow(palRow, b.palette, MAX_ELEM_COLORS, swatchEdit, commit);
         panel.appendChild(palRow);
@@ -1260,7 +1266,7 @@ app.registerExtension({
       });
       // "Grab BG" button: use the last generated image as the background, or clear it.
       node._grabResultBg = () => {
-        if (!lastResultImage) { alert("No sampling result yet — run a generation first."); return; }
+        if (!lastResultImage) { alert("还没有采样结果，请先运行一次生成。"); return; }
         node._bgManual = true;
         loadBg(resultViewUrl(lastResultImage));
       };
@@ -1334,6 +1340,7 @@ app.registerExtension({
         };
       });
       chainCallback(node, "onConfigure", function (o) {
+        localizeNodeTitle();
         const raw = o && Array.isArray(o.widgets_values) ? o.widgets_values : [];
         node._lastImported = (o && o.ideo && typeof o.ideo.import_json_cache === "string") ? o.ideo.import_json_cache : "";
         node._editorTouched = !!(o && o.ideo && o.ideo.editor_touched);

@@ -13,7 +13,7 @@ NODE_CLASS_MAPPINGS = {
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "Ideogram4DirectJSONBuilderModified": "Ideogram 4 Direct JSON Builder Modified",
+    "Ideogram4DirectJSONBuilderModified": "Ideogram 4 直接 JSON 构建器（修改版）",
 }
 
 WEB_DIRECTORY = "./web"

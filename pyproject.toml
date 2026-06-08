@@ -10,5 +10,5 @@ Repository = "https://github.com/Work-Fisher/ComfyUI-Ideogram4-DirectJSON-Modifi
 
 [tool.comfy]
 PublisherId = "work-fisher"
-DisplayName = "ComfyUI Ideogram4 DirectJSON Modified"
+DisplayName = "ComfyUI Ideogram4 直接 JSON 修改版"
 Icon = ""

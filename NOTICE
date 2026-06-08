@@ -1,21 +1,20 @@
-ComfyUI Ideogram4 DirectJSON Modified
+ComfyUI Ideogram4 直接 JSON 修改版
 
-This repository is a modified derivative of the Ideogram 4 prompt builder from
-ComfyUI-KJNodes.
+本仓库是 ComfyUI-KJNodes 中 Ideogram 4 prompt builder 的修改衍生版本。
 
-Original project:
+原项目：
 https://github.com/kijai/ComfyUI-KJNodes
 
-Original copyright belongs to the ComfyUI-KJNodes authors and contributors.
+原始版权归 ComfyUI-KJNodes 作者和贡献者所有。
 
-This modified standalone package keeps the original GNU GPL v3 license and marks
-the changed behavior:
+本独立修改版保留原 GNU GPL v3 许可证，并标记以下修改行为：
 
-- unique plugin package name
-- unique node id: Ideogram4DirectJSONBuilderModified
-- unique frontend extension name: WorkFisher.Ideogram4DirectJSONModified
-- import_json can be used as a one-run backend source when the visual editor is empty
-- manually edited visual boxes serialize back into the output JSON
+- 独立插件包名
+- 独立节点 id：Ideogram4DirectJSONBuilderModified
+- 独立前端扩展名：WorkFisher.Ideogram4DirectJSONModified
+- 当可视化编辑器为空时，import_json 可以作为单次运行的后端直接输入
+- 手动编辑后的可视化区域会序列化回输出 JSON
+- UI 显示文案已中文化，但 JSON 字段和节点 class_type 保持兼容
 
-License:
-GNU General Public License v3.0, see LICENSE.
+许可证：
+GNU General Public License v3.0，详见 LICENSE。

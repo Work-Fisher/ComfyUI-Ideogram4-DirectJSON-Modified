@@ -1,68 +1,69 @@
-# ComfyUI Ideogram4 DirectJSON Modified
+# ComfyUI Ideogram4 直接 JSON 修改版
 
-Standalone modified ComfyUI node for Ideogram 4 structured caption JSON with visual bbox editing.
+这是一个用于 Ideogram 4 结构化 caption JSON 的 ComfyUI 节点，支持直接导入 JSON、可视化编辑 bbox，并输出可直接连接使用的 JSON 提示词。
 
-This project is a modified derivative of the Ideogram 4 prompt builder in [ComfyUI-KJNodes](https://github.com/kijai/ComfyUI-KJNodes). It keeps the original GPLv3 license and is intentionally packaged with a different plugin name, node id, display name, Python module, and frontend extension name so it can coexist with KJNodes on cloud platforms.
+本项目基于 [ComfyUI-KJNodes](https://github.com/kijai/ComfyUI-KJNodes) 中的 Ideogram 4 prompt builder 修改而来，保留原 GPLv3 许可证。插件名、节点 id、显示名、Python 模块名和前端扩展名都与 KJNodes 不同，可以和 KJNodes 同时安装，避免云平台上覆盖原插件。
 
-## Why This Modified Version Exists
+## 修改目的
 
-The original KJNodes node treats `import_json` as an editor import helper: when connected, the JSON is pushed to the frontend after execution, so the first run can output the previous or empty editor state.
+原 KJNodes 节点把 `import_json` 更像是前端编辑器的导入辅助：连接后第一次运行会先把 JSON 推到前端，后端输出可能仍然是旧状态或空状态。
 
-This modified node changes that workflow:
+本修改版改变了这个流程：
 
-- If the visual editor is empty and `import_json` contains a valid Ideogram caption JSON, the same execution outputs that JSON immediately.
-- The imported JSON is also loaded into the visual editor, so the boxes are visible for inspection and manual editing.
-- After boxes are manually moved, resized, added, or removed, the hidden editor state takes priority and the output JSON reflects the edited bbox positions.
+- 如果编辑器为空，且 `import_json` 是有效的 Ideogram caption JSON，同一次运行会直接输出该 JSON。
+- 导入的 JSON 会同步加载到可视化编辑器，方便检查和调整框。
+- 手动移动、缩放、添加或删除框后，编辑器状态优先，输出 JSON 会反映修改后的 bbox。
+- `import_json` 与缓存 JSON 会按解析后的对象比较，不再因为空格、换行或压缩格式不同而误判为新输入。
 
-## Node
+## 节点
 
-Display name:
+显示名：
 
 ```text
-Ideogram 4 Direct JSON Builder Modified
+Ideogram 4 直接 JSON 构建器（修改版）
 ```
 
-Node id:
+节点 id：
 
 ```text
 Ideogram4DirectJSONBuilderModified
 ```
 
-Category:
+分类：
 
 ```text
-Ideogram4/modified
+Ideogram4/修改版
 ```
 
-## Outputs
+## 输出
 
-- `prompt`: Ideogram 4 structured caption JSON.
-- `preview`: visual preview with boxes and labels.
-- `bboxes`: pixel-space bbox output for BoundingBox consumers.
-- `width`: resolved canvas width.
-- `height`: resolved canvas height.
+- `提示词`：Ideogram 4 结构化 caption JSON。
+- `预览`：带区域框和编号的可视化预览。
+- `BBOX`：供 BoundingBox 消费节点使用的像素级 bbox。
+- `宽度`：最终画布宽度。
+- `高度`：最终画布高度。
 
-## Basic Workflow
+## 基本用法
 
-1. Connect or paste a generated Ideogram 4 caption JSON into `import_json`.
-2. Run once. The node outputs the JSON immediately and loads the visual boxes.
-3. Move or resize boxes in the editor.
-4. Run again. The output JSON reflects the edited box positions.
+1. 将生成好的 Ideogram 4 caption JSON 连接或粘贴到 `import_json`。
+2. 运行一次。节点会立即输出 JSON，并在编辑器中显示区域框。
+3. 在编辑器里移动、缩放、添加或删除区域。
+4. 再运行一次。输出 JSON 会使用编辑后的 bbox 坐标。
 
-## License And Attribution
+## 许可证与署名
 
-This is a GPLv3 modified derivative of ComfyUI-KJNodes' Ideogram 4 prompt builder.
+这是 ComfyUI-KJNodes Ideogram 4 prompt builder 的 GPLv3 修改衍生版本。
 
-Original project:
+原项目：
 
 ```text
 https://github.com/kijai/ComfyUI-KJNodes
 ```
 
-License:
+许可证：
 
 ```text
 GNU General Public License v3.0
 ```
 
-See [LICENSE](LICENSE).
+详见 [LICENSE](LICENSE)。
