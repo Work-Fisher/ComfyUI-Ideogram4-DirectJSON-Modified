@@ -204,6 +204,24 @@ def _parse_editor_payload(s):
     return [], "", False
 
 
+def _parse_caption_json(s):
+    if s and s.strip():
+        try:
+            cap = json.loads(s)
+            if isinstance(cap, dict) and isinstance(cap.get("compositional_deconstruction"), dict):
+                return cap
+        except json.JSONDecodeError:
+            pass
+    return None
+
+
+def _caption_changed(import_cap, import_json_cache):
+    if import_cap is None or not (import_json_cache and import_json_cache.strip()):
+        return False
+    cached_cap = _parse_caption_json(import_json_cache)
+    return cached_cap is None or cached_cap != import_cap
+
+
 def _caption_elem_to_box(el, idx=0):
     if not isinstance(el, dict):
         return None
@@ -337,24 +355,18 @@ the canvas aspect ratio.""",
         boxes, embedded_import_cache, explicit_editor_state = _parse_editor_payload(elements_data)
         if not import_json_cache and embedded_import_cache:
             import_json_cache = embedded_import_cache
-        import_cap = None
-        if import_json and import_json.strip():
-            try:
-                cap = json.loads(import_json)
-                if isinstance(cap, dict) and isinstance(cap.get("compositional_deconstruction"), dict):
-                    import_cap = cap
-            except json.JSONDecodeError:
-                pass
+        import_cap = _parse_caption_json(import_json)
 
-        import_changed = bool(import_json and import_json.strip() and import_json != (import_json_cache or ""))
+        has_import_cache = bool(import_json_cache and import_json_cache.strip())
+        import_changed = _caption_changed(import_cap, import_json_cache)
 
         # Direct import mode: first run with connected import_json, or any run where
         # upstream import_json changed, should output the imported caption immediately.
         # Once the editor has serialized boxes for the same import_json, it takes
         # priority so manual bbox edits update the output JSON.
         should_import = import_cap is not None and (
-            (import_changed and (not explicit_editor_state or bool(import_json_cache)))
-            or (not explicit_editor_state and not boxes and not import_json_cache)
+            (has_import_cache and import_changed)
+            or (not explicit_editor_state and not boxes and not has_import_cache)
         )
         if should_import:
             boxes = _boxes_from_caption(import_cap)
