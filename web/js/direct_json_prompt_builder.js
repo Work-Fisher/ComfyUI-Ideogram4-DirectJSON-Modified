@@ -500,10 +500,26 @@ app.registerExtension({
       }
 
       // ── serialization ──
+      function setHiddenWidgetValue(w, val) {
+        if (!w) return;
+        if (w.value !== val) {
+          w.value = val;
+          w.callback?.(val);
+        }
+      }
+
       function serialize() {
-        if (elementsWidget) elementsWidget.value = node._boxes.length ? JSON.stringify(node._boxes) : "";
-        if (stylePaletteWidget) stylePaletteWidget.value = node._stylePalette.length ? JSON.stringify(node._stylePalette) : "";
-        if (importCacheWidget) importCacheWidget.value = node._lastImported || "";
+        const importCache = node._lastImported || "";
+        const elementsPayload = node._boxes.length
+          ? JSON.stringify({ boxes: node._boxes, import_json_cache: importCache })
+          : "";
+        setHiddenWidgetValue(elementsWidget, elementsPayload);
+        setHiddenWidgetValue(stylePaletteWidget, node._stylePalette.length ? JSON.stringify(node._stylePalette) : "");
+        setHiddenWidgetValue(importCacheWidget, importCache);
+        if (node.graph) {
+          node.graph.change?.();
+          node.graph.setDirtyCanvas(true, true);
+        }
       }
 
       function commit() { serialize(); renderPanel(); drawCanvas(); updateTokens(); }
@@ -1272,6 +1288,7 @@ app.registerExtension({
         try {
           const p = JSON.parse(s);
           if (Array.isArray(p) && p.some((b) => b && typeof b.x === "number" && typeof b.w === "number")) return p;
+          if (p && Array.isArray(p.boxes) && p.boxes.some((b) => b && typeof b.x === "number" && typeof b.w === "number")) return p.boxes;
         } catch (e) {}
         return null;
       }

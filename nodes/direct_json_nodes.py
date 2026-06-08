@@ -181,9 +181,26 @@ def _parse_json_list(s):
             v = json.loads(s)
             if isinstance(v, list):
                 return v
+            if isinstance(v, dict) and isinstance(v.get("boxes"), list):
+                return v["boxes"]
         except json.JSONDecodeError:
             pass
     return []
+
+
+def _parse_editor_payload(s):
+    if s:
+        try:
+            v = json.loads(s)
+            if isinstance(v, list):
+                return v, ""
+            if isinstance(v, dict):
+                boxes = v.get("boxes") if isinstance(v.get("boxes"), list) else []
+                cache = v.get("import_json_cache") if isinstance(v.get("import_json_cache"), str) else ""
+                return boxes, cache
+        except json.JSONDecodeError:
+            pass
+    return [], ""
 
 
 def _caption_elem_to_box(el, idx=0):
@@ -316,7 +333,9 @@ the canvas aspect ratio.""",
                 high_level_description="", aesthetics="", lighting="", medium="",
                 import_json_cache="", style_palette_data="", elements_data="",
                 import_json="", image=None, bg_brightness=25) -> io.NodeOutput:
-        boxes = _parse_json_list(elements_data)
+        boxes, embedded_import_cache = _parse_editor_payload(elements_data)
+        if not import_json_cache and embedded_import_cache:
+            import_json_cache = embedded_import_cache
         import_cap = None
         if import_json and import_json.strip():
             try:
