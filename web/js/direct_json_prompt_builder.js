@@ -76,8 +76,9 @@ function injectStyle() {
   s.id = "wfideo-mod-style";
   s.textContent = `
     .kjideo-wrap { display:flex; flex-direction:column; overflow:hidden; position:relative; pointer-events:auto; gap:4px; }
-    .kjideo-canvas { cursor:crosshair; display:block; width:100%; height:auto; flex:0 0 auto; background:#1a1a1a; border-radius:4px; outline:none; }
-    .kjideo-bar { display:flex; align-items:center; gap:6px; font:11px sans-serif; color:#aaa; user-select:none; padding:0 2px; flex:0 0 auto; }
+    .kjideo-canvas { cursor:crosshair; display:block; width:100%; height:auto; flex:0 0 auto; background:#1a1a1a; border-radius:4px; outline:none; box-sizing:border-box; }
+    .kjideo-bar { display:flex; align-items:center; gap:6px; font:11px sans-serif; color:#aaa; user-select:none; padding:0 2px; flex:0 0 auto; flex-wrap:wrap; }
+    .kjideo-hint { flex:1 1 180px; min-width:160px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .kjideo-panel { display:flex; flex-direction:column; gap:5px; padding:6px; background:#262626; border-radius:4px; font:11px sans-serif; color:#bbb; flex:0 0 auto; }
     .kjideo-row { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
     .kjideo-btn { background:#333; border:1px solid #555; border-radius:4px; color:#bbb; font:11px sans-serif; cursor:pointer; padding:2px 8px; line-height:16px; white-space:nowrap; flex-shrink:0; }
@@ -119,17 +120,18 @@ app.registerExtension({
       const findW = (n) => node.widgets?.find((w) => w.name === n);
       const elementsWidget = findW("elements_data");
       const stylePaletteWidget = findW("style_palette_data");
+      const importCacheWidget = findW("import_json_cache");
       const bgBrightnessWidget = findW("bg_brightness");
       if (bgBrightnessWidget && typeof bgBrightnessWidget.value !== "number") bgBrightnessWidget.value = 25;
       const wWidget = findW("width"), hWidget = findW("height");
       // Hide the data widgets while keeping them serializable.
       function hideDataWidgets() {
-        for (const w of [elementsWidget, stylePaletteWidget, bgBrightnessWidget]) {
+        for (const w of [elementsWidget, stylePaletteWidget, importCacheWidget, bgBrightnessWidget]) {
           if (!w) continue;
           w.hidden = true;
           w.computeSize = () => [0, -4];
         }
-        for (const name of ["elements_data", "style_palette_data", "bg_brightness"]) {
+        for (const name of ["elements_data", "style_palette_data", "import_json_cache", "bg_brightness"]) {
           const i = node.inputs?.findIndex((inp) => inp.name === name);
           if (i != null && i !== -1) node.removeInput(i);
         }
@@ -160,7 +162,7 @@ app.registerExtension({
       const bar = document.createElement("div");
       bar.className = "kjideo-bar";
       const hint = document.createElement("span");
-      hint.style.flex = "1";
+      hint.className = "kjideo-hint";
       const copyBtn = document.createElement("button");
       copyBtn.className = "kjideo-btn";
       copyBtn.textContent = "Copy";
@@ -243,6 +245,8 @@ app.registerExtension({
       // is sized to display × devicePixelRatio in prepCanvas() so text/lines stay crisp.
       function setCanvasSize(w, h) {
         canvasEl.style.aspectRatio = `${w} / ${h}`;          // display shape only
+        const innerW = Math.max(1, Math.round((wrap.clientWidth || node.size?.[0] || w) - 4));
+        canvasEl.style.height = Math.max(48, Math.round(innerW * Math.max(1, h) / Math.max(1, w))) + "px";
         if (node.graph) node.graph.setDirtyCanvas(true, true);
       }
       function syncCanvasToDims() {
@@ -499,6 +503,7 @@ app.registerExtension({
       function serialize() {
         if (elementsWidget) elementsWidget.value = node._boxes.length ? JSON.stringify(node._boxes) : "";
         if (stylePaletteWidget) stylePaletteWidget.value = node._stylePalette.length ? JSON.stringify(node._stylePalette) : "";
+        if (importCacheWidget) importCacheWidget.value = node._lastImported || "";
       }
 
       function commit() { serialize(); renderPanel(); drawCanvas(); updateTokens(); }
@@ -984,7 +989,8 @@ app.registerExtension({
         catch (e) { return null; }
       }
       // Apply a parsed caption to the editor and refresh everything.
-      function loadCaption(cap) {
+      function loadCaption(cap, capStr = "") {
+        if (capStr) node._lastImported = capStr;
         closeInlineEditor();
         applyCaption(cap);
         syncCanvasToDims(); commit(); rebuildStylePalette(); fitNode();
@@ -994,7 +1000,7 @@ app.registerExtension({
         try { txt = (await navigator.clipboard.readText() || "").trim(); cap = tryParseCaption(txt); } catch (e) {}
         if (!cap) { txt = (window.prompt("Paste Ideogram 4 caption JSON:", "") || "").trim(); cap = tryParseCaption(txt); }
         if (!cap) { if (txt) alert("Not a valid Ideogram 4 caption JSON (needs 'compositional_deconstruction')."); return; }
-        loadCaption(cap);
+        loadCaption(cap, txt);
       }
       stopProp(importBtn);
       importBtn.addEventListener("click", doImport);
@@ -1005,8 +1011,7 @@ app.registerExtension({
         if (!capStr || capStr === node._lastImported) return;
         const cap = tryParseCaption(capStr);
         if (!cap) return;
-        node._lastImported = capStr;
-        loadCaption(cap);
+        loadCaption(cap, capStr);
       }
       chainCallback(node, "onExecuted", function (message) {
         if (message?.caption) applyImported(message.caption[0]);
@@ -1192,6 +1197,7 @@ app.registerExtension({
       chainCallback(node, "onResize", function () {
         if (_resizing) return;
         _resizing = true;
+        setCanvasSize(wWidget ? wWidget.value : 1024, hWidget ? hWidget.value : 1024);
         recalcWidgetHeight();
         // Resize clamp reads computeSize() before getMinHeight refreshes; re-grow with fresh min.
         const minH = node.computeSize()[1];

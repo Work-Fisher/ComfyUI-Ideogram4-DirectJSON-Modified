@@ -293,6 +293,8 @@ the canvas aspect ratio.""",
                                 tooltip="Optional: a full caption JSON. When connected, it loads into the "
                                         "editor on run. If the editor is empty, this same run outputs the input JSON; "
                                         "after manual edits, output reflects the editor state."),
+                io.String.Input("import_json_cache", default="", socketless=True, advanced=True,
+                                tooltip="Last imported caption JSON from the editor UI (managed by the node UI)."),
                 io.String.Input("style_palette_data", default="", socketless=True, advanced=True,
                                 tooltip="Serialized style color palette from the editor (managed by the node UI)."),
                 io.String.Input("elements_data", default="", socketless=True, advanced=True,
@@ -312,7 +314,8 @@ the canvas aspect ratio.""",
     @classmethod
     def execute(cls, width, height, background, style,
                 high_level_description="", aesthetics="", lighting="", medium="",
-                style_palette_data="", elements_data="", import_json="", image=None, bg_brightness=25) -> io.NodeOutput:
+                import_json_cache="", style_palette_data="", elements_data="",
+                import_json="", image=None, bg_brightness=25) -> io.NodeOutput:
         boxes = _parse_json_list(elements_data)
         import_cap = None
         if import_json and import_json.strip():
@@ -323,11 +326,13 @@ the canvas aspect ratio.""",
             except json.JSONDecodeError:
                 pass
 
-        # Direct import mode: first run with connected import_json should output the
-        # imported caption immediately. Once the editor has serialized boxes, it takes
-        # priority so manual bbox edits update the output JSON instead of being
-        # overwritten by the upstream import_json value.
-        if import_cap is not None and not boxes:
+        import_changed = bool(import_json and import_json.strip() and import_json != (import_json_cache or ""))
+
+        # Direct import mode: first run with connected import_json, or any run where
+        # upstream import_json changed, should output the imported caption immediately.
+        # Once the editor has serialized boxes for the same import_json, it takes
+        # priority so manual bbox edits update the output JSON.
+        if import_cap is not None and (import_changed or (not boxes and not import_json_cache)):
             boxes = _boxes_from_caption(import_cap)
             bg = None
             if image is not None:
