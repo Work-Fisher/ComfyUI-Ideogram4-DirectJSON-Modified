@@ -153,6 +153,7 @@ app.registerExtension({
       node._bgImg = null;      // optional reference image shown as the canvas background
       node._bgManual = false;  // bg set via "use last result" (not the image input)
       node._lastImported = ""; // last import_json applied to the editor (avoid re-apply)
+      node._editorTouched = false; // true after manual edits, including deleting all boxes
       node._areaH = node._areaH || {};      // remembered textarea heights (per field)
       node._areaObservers = [];             // live ResizeObservers to disconnect on rebuild
 
@@ -500,6 +501,10 @@ app.registerExtension({
       }
 
       // ── serialization ──
+      function markEdited() {
+        node._editorTouched = true;
+      }
+
       function setHiddenWidgetValue(w, val) {
         if (!w) return;
         if (w.value !== val) {
@@ -510,8 +515,12 @@ app.registerExtension({
 
       function serialize() {
         const importCache = node._lastImported || "";
-        const elementsPayload = (node._boxes.length || importCache)
-          ? JSON.stringify({ boxes: node._boxes, import_json_cache: importCache })
+        const elementsPayload = (node._boxes.length || importCache || node._editorTouched)
+          ? JSON.stringify({
+            boxes: node._boxes,
+            import_json_cache: importCache,
+            editor_state: node._editorTouched ? "edited" : "loaded",
+          })
           : "";
         setHiddenWidgetValue(elementsWidget, elementsPayload);
         setHiddenWidgetValue(stylePaletteWidget, node._stylePalette.length ? JSON.stringify(node._stylePalette) : "");
@@ -524,9 +533,10 @@ app.registerExtension({
 
       function commit() { serialize(); renderPanel(); drawCanvas(); updateTokens(); }
       // Live text edit: persist + repaint + token count, without rebuilding the panel.
-      function touch() { serialize(); drawCanvas(); updateTokens(); }
+      function touch() { markEdited(); serialize(); drawCanvas(); updateTokens(); }
 
       function removeBox(i) {
+        markEdited();
         node._boxes.splice(i, 1);
         if (node._boxes.length === 0) node._activeIdx = -1;
         else if (i <= node._activeIdx) node._activeIdx = Math.max(0, node._activeIdx - 1);
@@ -613,7 +623,7 @@ app.registerExtension({
         ta.focus(); ta.select();
         const orig = b.desc || "";
         let cancelled = false;
-        ta.addEventListener("input", () => { b.desc = ta.value; drawCanvas(); updateTokens(); });
+        ta.addEventListener("input", () => { markEdited(); b.desc = ta.value; drawCanvas(); updateTokens(); });
         ta.addEventListener("keydown", (e) => {
           e.stopPropagation();
           if (e.key === "Escape") { cancelled = true; b.desc = orig; ta.blur(); }
@@ -635,6 +645,7 @@ app.registerExtension({
       // Paste a clone of the clipboard box, offset slightly and clamped into the canvas.
       function pasteBox() {
         if (!copiedBox) return;
+        markEdited();
         const nb = JSON.parse(JSON.stringify(copiedBox));
         nb.x = Math.max(0, Math.min(clamp01(nb.x + 0.03), 1 - nb.w));
         nb.y = Math.max(0, Math.min(clamp01(nb.y + 0.03), 1 - nb.h));
@@ -670,6 +681,7 @@ app.registerExtension({
 
       function onMove(e) {
         if (!node._drawing) return;
+        markEdited();
         const mN = mouseN(e);
         const dN = { x: mN.x - node._dragStartN.x, y: mN.y - node._dragStartN.y };
         const nb = applyDrag(node._dragMode, node._boxAtStart, dN);
@@ -702,6 +714,7 @@ app.registerExtension({
       function startPlacing(srcIdx) {
         const src = node._boxes[srcIdx];
         if (!src) return;
+        markEdited();
         const nb = JSON.parse(JSON.stringify(src));
         delete nb.nobbox;
         node._boxes.push(nb);
@@ -847,6 +860,7 @@ app.registerExtension({
                 if (dragging) {
                   row.classList.remove("dragging");
                   row._dragged = true;                             // suppress the trailing click
+                  markEdited();
                   const active = node._boxes[node._activeIdx];
                   const order = Array.from(list.querySelectorAll(".kjideo-lrow")).map((el) => el._box);
                   if (order.length === node._boxes.length) node._boxes = order;
@@ -886,6 +900,7 @@ app.registerExtension({
       stopProp(clearBtn);
       clearBtn.addEventListener("click", () => {
         closeInlineEditor();
+        markEdited();
         node._boxes = []; node._activeIdx = -1; node._stylePalette = [];
         commit(); rebuildStylePalette(); fitNode();
       });
@@ -1007,6 +1022,7 @@ app.registerExtension({
       // Apply a parsed caption to the editor and refresh everything.
       function loadCaption(cap, capStr = "") {
         if (capStr) node._lastImported = capStr;
+        node._editorTouched = false;
         closeInlineEditor();
         applyCaption(cap);
         syncCanvasToDims(); commit(); rebuildStylePalette(); fitNode();
@@ -1119,7 +1135,7 @@ app.registerExtension({
       }
 
       // Swatch color changed (no add/remove): persist + repaint.
-      function swatchEdit() { serialize(); drawCanvas(); }
+      function swatchEdit() { markEdited(); serialize(); drawCanvas(); }
 
       function rebuildStylePalette() {
         while (styleBar.children.length > 1) styleBar.removeChild(styleBar.lastChild);
@@ -1171,7 +1187,7 @@ app.registerExtension({
           btn.className = "kjideo-btn" + (b.type === t ? " active" : "");
           btn.textContent = t;
           stopProp(btn);
-          btn.addEventListener("click", () => { b.type = t; commit(); });
+          btn.addEventListener("click", () => { markEdited(); b.type = t; commit(); });
           typeRow.appendChild(btn);
         }
         panel.appendChild(typeRow);
@@ -1292,12 +1308,39 @@ app.registerExtension({
         } catch (e) {}
         return null;
       }
+      function _recoverEditorMeta(s) {
+        try {
+          const p = JSON.parse(s || "");
+          if (!p || typeof p !== "object" || Array.isArray(p)) return;
+          if (!node._lastImported && typeof p.import_json_cache === "string") node._lastImported = p.import_json_cache;
+          if (p.editor_state === "edited") node._editorTouched = true;
+        } catch (e) {}
+      }
+      function _recoverCaptionCache(s) {
+        try {
+          const p = JSON.parse(s || "");
+          if (!node._lastImported && p && typeof p === "object" && p.compositional_deconstruction) {
+            node._lastImported = s;
+          }
+        } catch (e) {}
+      }
       // Persist editor data by name (robust to widget-order changes across versions).
       chainCallback(node, "onSerialize", function (o) {
-        if (o) o.ideo = { boxes: node._boxes, palette: node._stylePalette };
+        if (o) o.ideo = {
+          boxes: node._boxes,
+          palette: node._stylePalette,
+          import_json_cache: node._lastImported || "",
+          editor_touched: !!node._editorTouched,
+        };
       });
       chainCallback(node, "onConfigure", function (o) {
         const raw = o && Array.isArray(o.widgets_values) ? o.widgets_values : [];
+        node._lastImported = (o && o.ideo && typeof o.ideo.import_json_cache === "string") ? o.ideo.import_json_cache : "";
+        node._editorTouched = !!(o && o.ideo && o.ideo.editor_touched);
+        _recoverEditorMeta(elementsWidget?.value || "");
+        _recoverCaptionCache(importCacheWidget?.value || "");
+        for (const v of raw) { _recoverEditorMeta(v); _recoverCaptionCache(v); }
+        for (const w of node.widgets || []) { _recoverEditorMeta(w?.value); _recoverCaptionCache(w?.value); }
         // Recover regions: name-keyed blob → named widget → raw saved values (survives
         // any widget reorder/remap across versions) → live widgets.
         let boxes = (o && o.ideo && Array.isArray(o.ideo.boxes)) ? o.ideo.boxes : _parseBoxes(elementsWidget?.value || "");

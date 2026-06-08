@@ -193,14 +193,15 @@ def _parse_editor_payload(s):
         try:
             v = json.loads(s)
             if isinstance(v, list):
-                return v, ""
+                return v, "", True
             if isinstance(v, dict):
                 boxes = v.get("boxes") if isinstance(v.get("boxes"), list) else []
                 cache = v.get("import_json_cache") if isinstance(v.get("import_json_cache"), str) else ""
-                return boxes, cache
+                explicit = isinstance(v.get("boxes"), list) or v.get("editor_state") == "edited"
+                return boxes, cache, explicit
         except json.JSONDecodeError:
             pass
-    return [], ""
+    return [], "", False
 
 
 def _caption_elem_to_box(el, idx=0):
@@ -333,7 +334,7 @@ the canvas aspect ratio.""",
                 high_level_description="", aesthetics="", lighting="", medium="",
                 import_json_cache="", style_palette_data="", elements_data="",
                 import_json="", image=None, bg_brightness=25) -> io.NodeOutput:
-        boxes, embedded_import_cache = _parse_editor_payload(elements_data)
+        boxes, embedded_import_cache, explicit_editor_state = _parse_editor_payload(elements_data)
         if not import_json_cache and embedded_import_cache:
             import_json_cache = embedded_import_cache
         import_cap = None
@@ -351,7 +352,11 @@ the canvas aspect ratio.""",
         # upstream import_json changed, should output the imported caption immediately.
         # Once the editor has serialized boxes for the same import_json, it takes
         # priority so manual bbox edits update the output JSON.
-        if import_cap is not None and (import_changed or (not boxes and not import_json_cache)):
+        should_import = import_cap is not None and (
+            (import_changed and (not explicit_editor_state or bool(import_json_cache)))
+            or (not explicit_editor_state and not boxes and not import_json_cache)
+        )
+        if should_import:
             boxes = _boxes_from_caption(import_cap)
             bg = None
             if image is not None:
