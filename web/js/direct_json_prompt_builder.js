@@ -510,7 +510,7 @@ app.registerExtension({
 
       function serialize() {
         const importCache = node._lastImported || "";
-        const elementsPayload = node._boxes.length
+        const elementsPayload = (node._boxes.length || importCache)
           ? JSON.stringify({ boxes: node._boxes, import_json_cache: importCache })
           : "";
         setHiddenWidgetValue(elementsWidget, elementsPayload);
