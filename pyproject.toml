@@ -1,0 +1,14 @@
+[project]
+name = "comfyui-ideogram4-directjson-modified"
+description = "Standalone modified Ideogram 4 JSON/bbox prompt builder for ComfyUI, based on ComfyUI-KJNodes under GPLv3."
+version = "0.1.0"
+license = {file = "LICENSE"}
+dependencies = ["pillow>=10.3.0", "matplotlib"]
+
+[project.urls]
+Repository = "https://github.com/Work-Fisher/ComfyUI-Ideogram4-DirectJSON-Modified"
+
+[tool.comfy]
+PublisherId = "work-fisher"
+DisplayName = "ComfyUI Ideogram4 DirectJSON Modified"
+Icon = ""
